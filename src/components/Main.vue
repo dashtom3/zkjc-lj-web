@@ -330,10 +330,22 @@ export default {
         this.markers.forEach(marker=>{
           if(marker[0].data.id == item.employeeId){
             temp = true
-
             marker[0].data.target = [item.longitude,item.latitude]
             if(marker[0].data.kind == 'car'){
               var tempImg = item.longitude > marker[0].position[0]? require('../assets/car_r.png'):require('../assets/car_l.png')
+             
+             if( typeof(this.carData[index].carType)!='undefined'){
+                var name = this.carData[index].carType
+                if(name.indexOf('洒水车')!=-1){
+                  tempImg = item.longitude > marker[0].position[0]? require('../assets/watering_car_l.png'):require('../assets/watering_car_r.png')
+                }else if(name.indexOf('洗扫车')!=-1){
+                  tempImg = item.longitude > marker[0].position[0]? require('../assets/clean_car_l.png'):require('../assets/clean_car_r.png')
+                }else if(name.indexOf('吊装车')!=-1){
+                  tempImg = item.longitude > marker[0].position[0]? require('../assets/crane_l.png'):require('../assets/crane_r.png')
+                }
+              }
+              
+              
               marker[0].content = '<div style="width:60px;text-align:center"><img src="'+tempImg+'" style="width:25px"><div style="font-size:12px;background-color:white;margin-top:-10px">'+marker[0].data.carNumber+'</div></div>'
             }
             marker[0].data.times = 0
