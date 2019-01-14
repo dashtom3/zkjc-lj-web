@@ -52,7 +52,12 @@
 
     </div>
     <div class="amap-wrapper" v-loading="loading" element-loading-text="读取路径数据中">
-      <el-button @click="cleanPoly" size="small" class="clean-btn">清空路径</el-button>
+      <div class="clean-btn">
+        <el-radio v-model="checkSelect" :label="index" v-for="(item,index) in checkBox" @change="clickCheckBox">{{item}}</el-radio>
+
+        <el-button @click="cleanPoly" size="small" >清空路径</el-button>
+      </div>
+
       <el-amap vid="amapDemo" :zoom="map.zoom" :center="map.position">
         <template v-for="items in markers">
           <el-amap-marker v-for="item in items" :position="item.position" :events="item.events" :visible="item.visible"
@@ -120,6 +125,8 @@ export default {
     return {
       msg: 'Welcome to Your Vue.js App',
       mode:0,
+      checkBox:['全部','人员','车辆','垃圾桶'],
+      checkSelect:'全部',
       isSelectOpen:false,
       loading:false,
       datePicker:[new Date(new Date().getTime()-6*60*60*1000),new Date()],
@@ -148,6 +155,67 @@ export default {
 
   },
   methods:{
+    getRad(d){
+        var PI = Math.PI;
+        return d*PI/180.0;
+    },
+    getFlatternDistance(lat1,lng1,lat2,lng2){
+        var EARTH_RADIUS = 6378137.0;
+        var f = this.getRad((lat1 + lat2)/2);
+        var g = this.getRad((lat1 - lat2)/2);
+        var l = this.getRad((lng1 - lng2)/2);
+
+        var sg = Math.sin(g);
+        var sl = Math.sin(l);
+        var sf = Math.sin(f);
+
+        var s,c,w,r,d,h1,h2;
+        var a = EARTH_RADIUS;
+        var fl = 1/298.257;
+
+        sg = sg*sg;
+        sl = sl*sl;
+        sf = sf*sf;
+
+        s = sg*(1-sl) + (1-sf)*sl;
+        c = (1-sg)*(1-sl) + sf*sl;
+
+        w = Math.atan(Math.sqrt(s/c));
+        r = Math.sqrt(s*c)/w;
+        d = 2*w*a;
+        h1 = (3*r -1)/2/c;
+        h2 = (3*r +1)/2/s;
+
+        return d*(1 + fl*(h1*sf*(1-sg) - h2*(1-sf)*sg));
+    },
+    clickCheckBox(val){
+      switch (val) {
+        case 0:
+          this.showMarkers()
+          break;
+        case 1:
+          this.showMarkers('person')
+          break;
+        case 2:
+          this.showMarkers('car')
+          break;
+        case 3:
+          this.showMarkers('bin')
+          break;
+        default:
+
+      }
+    },
+    showMarkers(val){
+      this.markers.forEach(item=>{
+        if(val == null || item[0].data.kind == val){
+          item[0].visible = true
+        }else {
+          item[0].visible = false
+          item[1].visible = false
+        }
+      })
+    },
     async init(){
 
       await this.getPerson()
@@ -263,8 +331,16 @@ export default {
           if(marker[0].data.id == item.employeeId){
             temp = true
 
-            marker[0].data.target = [item.longitude,item.latitude],
+            marker[0].data.target = [item.longitude,item.latitude]
+            if(marker[0].data.kind == 'car'){
+              var tempImg = item.longitude > marker[0].position[0]? require('../assets/car_r.png'):require('../assets/car_l.png')
+              marker[0].content = '<div style="width:60px;text-align:center"><img src="'+tempImg+'" style="width:25px"><div style="font-size:12px;background-color:white;margin-top:-10px">'+marker[0].data.carNumber+'</div></div>'
+            }
             marker[0].data.times = 0
+            if(this.getFlatternDistance(marker[0].position[0],marker[0].position[1],item.longitude,item.latitude)>2000){
+              marker[0].position = [item.longitude,item.latitude],
+              marker[1].position = [item.longitude,item.latitude]
+            }
           }
         })
         if(temp == false){
@@ -280,17 +356,20 @@ export default {
               },
               events: {
                 click: () => {
-                  if(marker[0].data.kind !='bin'){
-                    marker[1].visible = !marker[1].visible
-                  }
+                  // if(marker[0].data.kind !='bin'){
+                  this.markers.forEach(item=>{
+                    item[1].visible = false
+                  })
+                  marker[1].visible = !marker[1].visible
+                  // }
                 }
               },
               zIndex:item.kind == 'car'? 2:1,
               visible:true
           },{
-              content: '<div style="width:200px;height:30px;text-align:left;background-color:white;border-radius:4px;border:1px solid #666666;padding:4px"><el-button size="mini" style="background-color:#cccccc;padding:3px;color:#333333 !important;">回放</el-button><span style="padding-left:5px">编号:'+item.employeeId+'</span></div>',
+              content: '',
               position:[item.longitude,item.latitude],
-              offset:[20,-20],
+              offset:[40,-20],
               events: {
                 click: () => {
                   // this.$router.push({name:"user_data",params:""})
@@ -306,12 +385,27 @@ export default {
           if(item.kind == 'bin'){
             tempImg = require('../assets/bin.png')
             marker[0].content = '<div style="width:25px;text-align:center;"><img src="'+tempImg+'" style="width:100%"></div>'
+            // marker[1].content = '<div style="width:200px;height:30px;text-align:left;background-color:white;border-radius:4px;border:1px solid #666666;padding:4px"><el-button size="mini" style="background-color:#cccccc;padding:3px;color:#333333 !important;">回放</el-button><span style="padding-left:5px">编号:'+item.employeeId+'</span></div>',
+            this.binData.forEach(item2=>{
+              if(item2.employeeId = item.employeeId){
+                var tempR = item2.currentV != item2.maxV ? '未满':'已满'
+                marker[1].content = '<div style="width:200px;height:140px;text-align:left;background-color:white;border-radius:4px;border:1px solid #666666;padding:4px">'
+                +'<table style="width:100%"><tr><td>编号</td><td>'+item2.employeeId+'</td></tr><tr><td>名称</td><td>'+item2.binName+'</td></tr><tr><td>乡镇</td><td>'+item2.area+'</td></tr><tr><td>温度</td><td>'+item2.temperature+'</td></tr><tr><td>容量</td><td>'+tempR+'</td></tr></table></div>'
+              }
+
+            })
           }else if(item.kind == 'car'){
-            tempImg = require('../assets/car.png')
+            tempImg = require('../assets/car_l.png')
             marker[0].content = '<div style="width:25px;text-align:center;"><img src="'+tempImg+'" style="width:100%"></div>'
             this.carData.forEach(item2=>{
               if(item2.employeeId == item.employeeId){
-                marker[0].content = '<div style="width:60px;text-align:center"><img src="'+tempImg+'" style="width:25px"><div style="font-size:12px;background-color:white;margin-top:-10px">'+item2.carNumber+'</div></div>'
+                var tempQQ = item2.carNumber == '临时牌照'? item2.carName:item2.carNumber
+                marker[0].data.carNumber = tempQQ
+                marker[0].content = '<div style="width:60px;text-align:center"><img src="'+tempImg+'" style="width:25px"><div style="font-size:12px;background-color:white;margin-top:-10px">'+tempQQ+'</div></div>'
+                marker[1].content = '<div style="width:200px;height:160px;text-align:left;background-color:white;border-radius:4px;border:1px solid #666666;padding:4px">'
+                +'<el-button size="mini" style="background-color:#cccccc;padding:3px;color:#333333 !important;">回放</el-button><span style="padding-left:5px">编号:'+item.employeeId+'</span>'
+                +'<div style="width=100%;height:1px;background-color:#999999;margin-top:3px"></div>'
+                +'<table style="width:100%"><tr><td>车牌号</td><td>'+item2.carNumber+'</td></tr><tr><td>类型</td><td>'+item2.carType+'</td></tr><tr><td>姓名</td><td>'+item2.carName+'</td></tr><tr><td>乡镇</td><td>'+item2.area+'</td></tr><tr><td>手机号</td><td>'+item2.phone+'</td></tr></table></div>'
               }
             })
           }else if(item.kind == 'person'){
@@ -320,6 +414,10 @@ export default {
             this.personData.forEach(item2=>{
               if(item2.employeeId == item.employeeId){
                 marker[0].content = '<div style="width:40px;text-align:center;"><img src="'+tempImg+'" style="width:25px"><div style="font-size:12px;background-color:white;margin-top:-10px">'+item2.personName+'</div></div>'
+                marker[1].content = '<div style="width:200px;height:180px;text-align:left;background-color:white;border-radius:4px;border:1px solid #666666;padding:4px">'
+                +'<el-button size="mini" style="background-color:#cccccc;padding:3px;color:#333333 !important;">回放</el-button><span style="padding-left:5px">编号:'+item.employeeId+'</span>'
+                +'<div style="width=100%;height:1px;background-color:#999999;margin-top:3px"></div>'
+                +'<table style="width:100%"><tr><td>姓名</td><td>'+item2.personName+'</td></tr><tr><td>职务</td><td>'+item2.job+'</td></tr><tr><td>工种</td><td>'+item2.kind+'</td></tr><tr><td>乡镇</td><td>'+item2.area+'</td></tr><tr><td>手机</td><td>'+item2.phone+'</td></tr></table></div>'
               }
             })
           }
@@ -333,6 +431,7 @@ export default {
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
+/* table,table tr th, table tr td { border:1px solid #0094ff; } */
 .main{
   height: 100%;
   width: 100%;
@@ -340,7 +439,7 @@ export default {
 }
 
 .amap-wrapper {
-  width: 55%;
+  width: 60%;
   /* height:100vh; */
   height: 100%;
   float: left;
@@ -352,9 +451,12 @@ export default {
   right: 0;
   position: absolute;
   z-index:2;
+  background-color: white;
+  border:1px solid #eeeeee;
+  padding-left: 10px;
 }
 .left-content {
-  width:25%;
+  width:20%;
   float: left;
   padding:10px;
   height: 100%;
