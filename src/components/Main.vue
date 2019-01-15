@@ -2,7 +2,7 @@
   <div class="main">
     <div class="left-content">
       <div class="block">
-        <div class="title"><h4>垃圾车</h4></div>
+        <div class="title"><h4>车辆</h4></div>
         <div class="tem-table">
           <el-table
             border
@@ -26,7 +26,7 @@
         </div>
       </div>
       <div class="block">
-        <div class="title"><h4>环卫工</h4></div>
+        <div class="title"><h4>人员</h4></div>
         <div class="tem-table">
           <el-table
             border
@@ -54,7 +54,6 @@
     <div class="amap-wrapper" v-loading="loading" element-loading-text="读取路径数据中">
       <div class="clean-btn">
         <el-radio v-model="checkSelect" :label="index" v-for="(item,index) in checkBox" @change="clickCheckBox">{{item}}</el-radio>
-
         <el-button @click="cleanPoly" size="small" >清空路径</el-button>
       </div>
 
@@ -69,7 +68,7 @@
     </div>
     <div class="right-content">
       <div class="block2">
-      <div class="title"><h4>垃圾桶</h4></div>
+      <div class="title"><h4>深埋桶</h4></div>
       <div class="tem-table2">
         <el-table
           border
@@ -125,7 +124,7 @@ export default {
     return {
       msg: 'Welcome to Your Vue.js App',
       mode:0,
-      checkBox:['全部','人员','车辆','垃圾桶'],
+      checkBox:['全部','车辆','人员','深埋桶'],
       checkSelect:'全部',
       isSelectOpen:false,
       loading:false,
@@ -194,10 +193,10 @@ export default {
           this.showMarkers()
           break;
         case 1:
-          this.showMarkers('person')
+          this.showMarkers('car')
           break;
         case 2:
-          this.showMarkers('car')
+          this.showMarkers('person')
           break;
         case 3:
           this.showMarkers('bin')
@@ -333,8 +332,7 @@ export default {
             marker[0].data.target = [item.longitude,item.latitude]
             if(marker[0].data.kind == 'car'){
               var tempImg = item.longitude > marker[0].position[0]? require('../assets/car_r.png'):require('../assets/car_l.png')
-             
-             if( typeof(this.carData[index].carType)!='undefined'){
+             if( typeof(this.carData[index])!='undefined'){
                 var name = this.carData[index].carType
                 if(name.indexOf('洒水车')!=-1){
                   tempImg = item.longitude > marker[0].position[0]? require('../assets/watering_car_l.png'):require('../assets/watering_car_r.png')
@@ -367,7 +365,8 @@ export default {
                 kind:item.kind
               },
               events: {
-                click: () => {
+                click: (val) => {
+                  
                   // if(marker[0].data.kind !='bin'){
                   this.markers.forEach(item=>{
                     item[1].visible = false
@@ -383,10 +382,16 @@ export default {
               position:[item.longitude,item.latitude],
               offset:[40,-20],
               events: {
-                click: () => {
+                click: (val) => {
                   // this.$router.push({name:"user_data",params:""})
-                  this.showReplay(marker)
-                  marker[1].visible = !marker[1].visible
+                  var sp = document.getElementById('cancle')
+                  console.log(val.target)
+                  if(!sp.contains(val.target)){
+                    this.showReplay(marker)
+                   marker[1].visible = !marker[1].visible
+                  }else{
+                    console.log('关闭')
+                  }
                 }
               },
               zIndex:3,
@@ -396,13 +401,13 @@ export default {
           var tempImg
           if(item.kind == 'bin'){
             tempImg = require('../assets/bin.png')
-            marker[0].content = '<div style="width:25px;text-align:center;"><img src="'+tempImg+'" style="width:100%"></div>'
+            marker[0].content = '<div style="width:18px;text-align:center;"><img src="'+tempImg+'" style="width:100%"></div>'
             // marker[1].content = '<div style="width:200px;height:30px;text-align:left;background-color:white;border-radius:4px;border:1px solid #666666;padding:4px"><el-button size="mini" style="background-color:#cccccc;padding:3px;color:#333333 !important;">回放</el-button><span style="padding-left:5px">编号:'+item.employeeId+'</span></div>',
-            this.binData.forEach(item2=>{
+            this.binData.forEach((item2,index)=>{
               if(item2.employeeId = item.employeeId){
                 var tempR = item2.currentV != item2.maxV ? '未满':'已满'
                 marker[1].content = '<div style="width:200px;height:140px;text-align:left;background-color:white;border-radius:4px;border:1px solid #666666;padding:4px">'
-                +'<table style="width:100%"><tr><td>编号</td><td>'+item2.employeeId+'</td></tr><tr><td>名称</td><td>'+item2.binName+'</td></tr><tr><td>乡镇</td><td>'+item2.area+'</td></tr><tr><td>温度</td><td>'+item2.temperature+'</td></tr><tr><td>容量</td><td>'+tempR+'</td></tr></table></div>'
+                +'<table style="width:100%"><tr><td>编号</td><td>'+item2.employeeId+'</td><td style="color:blue" id="cancle">取消</td></tr><tr><td>名称</td><td>'+item2.binName+'</td></tr><tr><td>乡镇</td><td>'+item2.area+'</td></tr><tr><td>温度</td><td>'+item2.temperature+'</td></tr><tr><td>容量</td><td>'+tempR+'</td></tr></table></div>'
               }
 
             })
